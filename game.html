@@ -1,0 +1,163 @@
+<html>
+<head>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #111; color: white; text-align: center; overflow: hidden; margin: 0; }
+        
+        /* Updated Back Button for Iframe Escape */
+        .back-btn { 
+            position: absolute; 
+            top: 15px; 
+            left: 15px; 
+            text-decoration: none; 
+            color: #38bdf8; 
+            font-size: 12px; 
+            font-weight: bold; 
+            border: 1px solid #38bdf8; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            background: rgba(56, 189, 248, 0.1); 
+            z-index: 100; 
+            cursor: pointer;
+        }
+        .back-btn:hover { background: #38bdf8; color: #111; }
+
+        #game-canvas { background: #222; border-left: 5px dashed #444; border-right: 5px dashed #444; display: block; margin: 20px auto; cursor: crosshair; }
+        
+        .ui { position: absolute; top: 20px; right: 20px; text-align: right; }
+        .score-val { color: #2ECC40; font-family: monospace; font-size: 24px; }
+        
+        .controls-hint { color: #888; font-size: 12px; margin-top: 10px; }
+        
+        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 30px; border-radius: 10px; display: none; border: 2px solid #FF4136; width: 250px; }
+        .restart-btn { background: #FF4136; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <a href="#" class="back-btn" onclick="window.parent.showLinks(); return false;">« TERMINAL</a>
+
+    <div class="ui">
+        SCORE: <span id="score" class="score-val">0</span>
+    </div>
+
+    <h2 style="margin-top: 10px; color: #38bdf8;">SMART-SYNC COMMUTE</h2>
+    
+    <canvas id="game-canvas" width="300" height="500"></canvas>
+    
+    <div class="controls-hint">Use <b>LEFT / RIGHT</b> Arrows or click the Lane</div>
+
+    <div id="overlay">
+        <h2 style="color: #FF4136; margin-top: 0;">COLLISION DETECTED</h2>
+        <p>Traffic sensor sync lost.</p>
+        <button class="restart-btn" onclick="resetGame()">REBOOT SYSTEM</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const overlay = document.getElementById('overlay');
+
+        let score = 0;
+        let gameActive = true;
+        let speed = 5;
+        const laneWidth = 100;
+
+        // Player Car
+        let player = { x: 125, y: 420, w: 50, h: 70 };
+        
+        // Traffic
+        let enemies = [];
+
+        function spawnEnemy() {
+            if (!gameActive) return;
+            const lane = Math.floor(Math.random() * 3);
+            enemies.push({
+                x: (lane * laneWidth) + 25,
+                y: -100,
+                w: 50,
+                h: 70,
+                color: '#FF4136'
+            });
+            setTimeout(spawnEnemy, Math.max(400, 1500 - (score * 5)));
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = '#38bdf8'; // Matches Terminal Blue
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(player.x + 10, player.y + 10, 30, 15);
+        }
+
+        function drawEnemies() {
+            enemies.forEach((en, index) => {
+                ctx.fillStyle = en.color;
+                ctx.fillRect(en.x, en.y, en.w, en.h);
+                en.y += speed;
+
+                if (player.x < en.x + en.w &&
+                    player.x + player.w > en.x &&
+                    player.y < en.y + en.h &&
+                    player.y + player.h > en.y) {
+                    gameOver();
+                }
+
+                if (en.y > canvas.height) {
+                    enemies.splice(index, 1);
+                    score += 10;
+                    speed += 0.1;
+                    scoreEl.innerText = score;
+                }
+            });
+        }
+
+        function update() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#333';
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(100, 0); ctx.lineTo(100, 500);
+            ctx.moveTo(200, 0); ctx.lineTo(200, 500);
+            ctx.stroke();
+
+            drawPlayer();
+            drawEnemies();
+            requestAnimationFrame(update);
+        }
+
+        function gameOver() {
+            gameActive = false;
+            overlay.style.display = 'block';
+        }
+
+        function resetGame() {
+            score = 0;
+            speed = 5;
+            enemies = [];
+            player.x = 125;
+            gameActive = true;
+            scoreEl.innerText = '0';
+            overlay.style.display = 'none';
+            update();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && player.x > 50) player.x -= laneWidth;
+            if (e.key === 'ArrowRight' && player.x < 200) player.x += laneWidth;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            if (mouseX < 100) player.x = 25;
+            else if (mouseX < 200) player.x = 125;
+            else player.x = 225;
+        });
+
+        spawnEnemy();
+        update();
+    </script>
+</body>
+</html>
